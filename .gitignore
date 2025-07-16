@@ -10,3 +10,5 @@ client/dist
 
 # server
 server/node_modules
+
+run-dev.bat
