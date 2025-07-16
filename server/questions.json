@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "level": 1,
+    "topic": "ethics",
+    "question": "Is lying ever justifiable?"
+  },
+  {
+    "id": 2,
+    "level": 2,
+    "topic": "technology",
+    "question": "Will AI replace most human jobs?"
+  },
+  {
+    "id": 3,
+    "level": 3,
+    "topic": "philosophy",
+    "question": "Do humans have free will?"
+  }
+]
