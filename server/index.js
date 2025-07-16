@@ -168,7 +168,6 @@ io.on("connection", socket => {
         .filter(p => !p.isSpectator)
         .map(x => ({ name: x.name, choice: x.selection }));
       io.emit("all_selections", { selections: sels });
-      // auto-next on answered
       if (autoNext) {
         questionTimer = setTimeout(startNextLevel, 10 * 1000);
       }
@@ -193,11 +192,10 @@ io.on("connection", socket => {
       gameStarted &&
       players.filter(p => !p.isSpectator).length < minPlayers
     ) {
-      gameStarted = false;
-      currentLevel = 0;
       clearTimeout(questionTimer);
       io.emit("game_cancelled", "Yeterli oyuncu kalmadı, oyun iptal edildi.");
-      console.warn("⚠️ Oyun iptal edildi.");
+      gameStarted = false;
+      currentLevel = 0;
     }
     io.emit("players_update", players.map(p => ({
       name: p.name,

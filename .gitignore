@@ -1,0 +1,12 @@
+# root-level
+node_modules
+.env
+dist
+.DS_Store
+
+# client
+client/node_modules
+client/dist
+
+# server
+server/node_modules
