@@ -1,3 +1,4 @@
+// server/index.js
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
@@ -10,7 +11,7 @@ app.use(cors());
 const server = http.createServer(app);
 const io     = new Server(server, { cors: { origin: "*" } });
 
-let players      = []; // { id, name, isAdmin, isSpectator, selection }
+let players      = []; // { id, name, avatar, isAdmin, isSpectator, selection }
 let currentLevel = 0;
 let gameStarted  = false;
 let minPlayers   = 8;
@@ -47,30 +48,31 @@ function startNextLevel() {
     optionB: opts.optionB
   });
 
-  // 30s answer window, then emit time_up but DO NOT auto-advance
+  // 30s answer window
   timerHandle = setTimeout(() => io.emit("time_up"), 30 * 1000);
 }
 
 io.on("connection", socket => {
   console.log("🔌 Connected:", socket.id);
+  socket.onAny((e, args) => console.log(e, args));
 
-  socket.onAny((e,args) => console.log(e,args));
-
-  socket.on("send_name", name => {
+  socket.on("send_name", ({ name, avatar }) => {
     if (players.find(p => p.id === socket.id)) return;
     const isSpectator = gameStarted;
     const isAdmin     = !gameStarted && players.length === 0;
-    players.push({ id: socket.id, name, isAdmin, isSpectator, selection: null });
+    players.push({ id: socket.id, name, avatar, isAdmin, isSpectator, selection: null });
 
     io.emit("players_update", players.map(p => ({
-      name: p.name, isAdmin: p.isAdmin, isSpectator: p.isSpectator
+      name:       p.name,
+      avatar:     p.avatar,
+      isAdmin:    p.isAdmin,
+      isSpectator:p.isSpectator
     })));
     socket.emit("you_are", { isAdmin, isSpectator });
     socket.emit("min_players_update", minPlayers);
     socket.emit("auto_start_update", autoStart);
     socket.emit("auto_next_update", autoNext);
 
-    // Auto-start if enabled
     if (!gameStarted &&
         autoStart &&
         players.filter(p => !p.isSpectator).length >= minPlayers) {
@@ -85,7 +87,6 @@ io.on("connection", socket => {
     if (!p?.isAdmin) return;
     minPlayers = Math.max(1, parseInt(v,10) || 1);
     io.emit("min_players_update", minPlayers);
-    // re-check auto-start
     if (!gameStarted &&
         autoStart &&
         players.filter(p => !p.isSpectator).length >= minPlayers) {
@@ -143,7 +144,6 @@ io.on("connection", socket => {
           .filter(p => !p.isSpectator)
           .map(x => ({ name: x.name, choice: x.selection }))
       });
-      // auto-next if enabled
       if (autoNext) {
         timerHandle = setTimeout(() => startNextLevel(), 10 * 1000);
       }
@@ -159,7 +159,10 @@ io.on("connection", socket => {
   socket.on("disconnect", () => {
     players = players.filter(p => p.id !== socket.id);
     io.emit("players_update", players.map(p => ({
-      name: p.name, isAdmin: p.isAdmin, isSpectator: p.isSpectator
+      name:       p.name,
+      avatar:     p.avatar,
+      isAdmin:    p.isAdmin,
+      isSpectator:p.isSpectator
     })));
     if (gameStarted &&
         players.filter(p => !p.isSpectator).length < minPlayers) {

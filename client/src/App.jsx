@@ -1,9 +1,26 @@
+// client/src/App.jsx
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
+
+const avatarList = [
+  "/avatars/av1.png",
+  "/avatars/av2.png",
+  "/avatars/av3.png",
+  "/avatars/av4.png",
+  "/avatars/av5.png",
+  "/avatars/av6.png",
+  "/avatars/av7.png",
+  "/avatars/av8.png",
+  "/avatars/av9.png",
+  "/avatars/av10.png",
+  "/avatars/av11.png",
+  "/avatars/av12.png",
+];
 
 function App() {
   const [socket, setSocket] = useState(null);
   const [name, setName] = useState("");
+  const [selectedAvatar, setSelectedAvatar] = useState(null);
   const [joined, setJoined] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSpectator, setIsSpectator] = useState(false);
@@ -18,7 +35,6 @@ function App() {
   const [allSelections, setAllSelections] = useState(null);
   const [countdown, setCountdown] = useState(0);
 
-  // --- Initialize socket once ---
   useEffect(() => {
     const sock = io("http://localhost:3001", {
       transports: ["websocket", "polling"],
@@ -42,32 +58,31 @@ function App() {
       setLevelData(data);
       setSelected(null);
       setAllSelections(null);
-      setCountdown(30);         // 30s to answer
+      setCountdown(30);
     });
     sock.on("all_selections", ({ selections }) => {
       setAllSelections(selections);
-      if (autoNext) setCountdown(10);  // 10s discussion
-      else setCountdown(0);            // freeze until admin
+      if (autoNext) setCountdown(10);
+      else setCountdown(0);
     });
 
-    sock.on("time_up", () => {
-      // answer time over → evaluation screen stays
-    });
+    sock.on("time_up", () => {});
     sock.on("game_over", () => reset());
     sock.on("game_cancelled", () => reset());
 
     return () => sock.disconnect();
-  }, []);  // <-- run only once
+  }, []);
 
-  // --- Countdown effect ---
   useEffect(() => {
     if (countdown <= 0) return;
     const id = setTimeout(() => setCountdown(c => c - 1), 1000);
     return () => clearTimeout(id);
   }, [countdown]);
 
-  // --- Event Handlers ---
-  const handleJoin     = () => { socket?.emit("send_name", name.trim()); setJoined(true); };
+  const handleJoin = () => {
+    socket?.emit("send_name", { name: name.trim(), avatar: selectedAvatar });
+    setJoined(true);
+  };
   const handleSetMin   = () => socket?.emit("set_min_players", minInput);
   const handleToggleAS = () => socket?.emit("toggle_auto_start", !autoStart);
   const handleToggleAN = () => socket?.emit("toggle_auto_next",  !autoNext);
@@ -87,11 +102,9 @@ function App() {
     setCountdown(0);
   };
 
-  // --- Derived State ---
-  const nonSpecCount    = players.filter(p => !p.isSpectator).length;
+  const nonSpecCount     = players.filter(p => !p.isSpectator).length;
   const canStartManually = isAdmin && !gameStarted && nonSpecCount >= minPlayers;
 
-  // --- Render ---
   if (!joined) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
@@ -103,9 +116,22 @@ function App() {
             className="w-full text-gray-900 p-2 rounded"
             placeholder="Your name"
           />
+          <div className="grid grid-cols-4 gap-2 mt-2">
+            {avatarList.map((src,i) => (
+              <img
+                key={i}
+                src={src}
+                alt={`avatar-${i}`}
+                className={`w-16 h-16 rounded-full cursor-pointer ${
+                  selectedAvatar===src ? "ring-4 ring-blue-400" : ""
+                }`}
+                onClick={() => setSelectedAvatar(src)}
+              />
+            ))}
+          </div>
           <button
             onClick={handleJoin}
-            disabled={!name.trim()}
+            disabled={!name.trim() || !selectedAvatar}
             className="w-full bg-blue-600 py-2 rounded hover:bg-blue-700 disabled:opacity-50 transition"
           >
             Join Lobby
@@ -118,17 +144,15 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center p-4">
       <div className="w-full max-w-md sm:max-w-lg lg:max-w-xl">
-
-        {/* --- Lobby --- */}
         {!gameStarted ? (
           <div className="bg-gray-800 p-4 rounded-lg shadow-md mb-6">
             <h3 className="text-xl mb-2">
-              Lobby ({nonSpecCount}/{minPlayers})
-              {isSpectator && " – Spectator"}
+              Lobby ({nonSpecCount}/{minPlayers}){isSpectator && " – Spectator"}
             </h3>
             <ul className="space-y-1 mb-4">
               {players.map((p,i) => (
                 <li key={i} className="flex items-center">
+                  <img src={p.avatar} alt="" className="w-6 h-6 rounded-full mr-2" />
                   <span className="flex-1">{p.name}</span>
                   {p.isAdmin     && <span className="text-yellow-400 ml-2">(Admin)</span>}
                   {p.isSpectator && <span className="text-gray-400 ml-2">👀</span>}
@@ -144,12 +168,7 @@ function App() {
                     onChange={e => setMinInput(e.target.value)}
                     className="text-gray-900 w-16 p-1 rounded"
                   />
-                  <button
-                    onClick={handleSetMin}
-                    className="bg-yellow-500 px-3 py-1 rounded hover:bg-yellow-600 transition"
-                  >
-                    Set Min
-                  </button>
+                  <button onClick={handleSetMin} className="bg-yellow-500 px-3 py-1 rounded hover:bg-yellow-600">Set Min</button>
                 </div>
                 <div className="flex items-center space-x-4">
                   <label className="flex items-center space-x-1">
@@ -165,9 +184,7 @@ function App() {
                   onClick={handleStart}
                   disabled={!canStartManually}
                   className={`w-full py-2 rounded transition ${
-                    canStartManually
-                      ? "bg-green-600 hover:bg-green-700"
-                      : "bg-gray-600 cursor-not-allowed"
+                    canStartManually ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 cursor-not-allowed"
                   }`}
                 >
                   Start Game
@@ -176,13 +193,10 @@ function App() {
             )}
           </div>
         ) : (
-        /* --- Game Screen --- */
           <div className="bg-gray-800 p-4 rounded-lg shadow-md w-full">
             {levelData ? (
               <>
                 <h2 className="text-2xl font-bold mb-2">Level {levelData.level}</h2>
-
-                {/* Countdown Bar */}
                 {countdown > 0 && (
                   <>
                     <div className="h-2 bg-gray-700 rounded overflow-hidden mb-2">
@@ -196,8 +210,6 @@ function App() {
                     </p>
                   </>
                 )}
-
-                {/* Options */}
                 {!selected && !isSpectator && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     {[levelData.optionA, levelData.optionB].map((opt,i) => (
@@ -212,12 +224,8 @@ function App() {
                   </div>
                 )}
                 {selected && (
-                  <p className="text-green-400 text-center mb-4">
-                    You selected: {selected}
-                  </p>
+                  <p className="text-green-400 text-center mb-4">You selected: {selected}</p>
                 )}
-
-                {/* Evaluation */}
                 {allSelections && (
                   <div className="bg-gray-700 p-3 rounded mb-4">
                     <h3 className="text-lg font-semibold mb-2">Everyone’s Choices:</h3>
@@ -231,8 +239,6 @@ function App() {
                     </ul>
                   </div>
                 )}
-
-                {/* Admin Next */}
                 {isAdmin && (
                   <button
                     onClick={handleNext}

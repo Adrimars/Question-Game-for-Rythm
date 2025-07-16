@@ -4,11 +4,19 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true,
     port: 5173,
-    allowedHosts: [
-      'all',
-      'b3358a6025db.ngrok-free.app'  // 💥 bu satırı kendi linkine göre ekle
-    ]
+    host: true,
+    strictPort: true,
+    watch: {
+      usePolling: true
+    },
+    proxy: {
+      '/socket.io': {
+        target: 'https://d29f3315a3cc.ngrok-free.app',
+        ws: true,
+        changeOrigin: true,
+        secure: false
+      }
+    }
   }
 })
